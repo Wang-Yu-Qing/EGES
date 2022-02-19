@@ -67,7 +67,7 @@ def eval(model, test_graph, sku_info):
         preds.append(logit)
         labels.append(edge.label)
     
-    fpr, tpr, thresholds = metrics.roc_curve(labels, pred, pos_label=1)
+    fpr, tpr, thresholds = metrics.roc_curve(labels, preds, pos_label=1)
 
     print("Evaluate link prediction AUC: {:.4f}".format(metrics.auc(fpr, tpr)))
 
