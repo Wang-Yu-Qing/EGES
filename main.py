@@ -63,10 +63,9 @@ def eval(model, test_graph, sku_info):
         dst = model.query_node_embed(dst)
         # (1, dim) -> (1, dim) -> (1, )
         logit = th.sigmoid(th.sum(src * dst))
-
-        preds.append(logit)
+        preds.append(logit.detach().numpy().tolist())
         labels.append(edge.label)
-    
+
     fpr, tpr, thresholds = metrics.roc_curve(labels, preds, pos_label=1)
 
     print("Evaluate link prediction AUC: {:.4f}".format(metrics.auc(fpr, tpr)))
