@@ -1,24 +1,28 @@
 import dgl
+import random
 import argparse
+import torch as th
 import numpy as np
 import networkx as nx
-import torch as th
 from datetime import datetime
 
 
 def init_args():
+    # TODO: change args
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--session_interval_sec', type=int, default=1800)
     argparser.add_argument('--action_data', type=str, default="data/action_head.csv")
     argparser.add_argument('--item_info_data', type=str, 
                            default="data/jdata_product.csv")
-    argparser.add_argument('--walk_length', type=int, default=10)
-    argparser.add_argument('--num_walks', type=int, default=5)
+    argparser.add_argument('--walk_length', type=int, default=5)
+    argparser.add_argument('--num_walks', type=int, default=2)
     argparser.add_argument('--batch_size', type=int, default=16)
-    argparser.add_argument('--dim', type=int, default=16)
-    argparser.add_argument('--epochs', type=int, default=30)
+    argparser.add_argument('--dim', type=int, default=4)
+    argparser.add_argument('--epochs', type=int, default=5)
     argparser.add_argument('--window_size', type=int, default=1)
-    argparser.add_argument('--num_negative', type=int, default=5)
+    argparser.add_argument('--num_negative', type=int, default=2)
+    argparser.add_argument('--lr', type=float, default=0.005)
+    argparser.add_argument('--log_every', type=int, default=100)
     
     return argparser.parse_args()
 
@@ -52,6 +56,34 @@ def construct_graph(datapath, session_interval_gap_sec, valid_sku_raw_ids):
     g = convert_to_dgl_graph(graph)
 
     return g, sku_encoder, sku_decoder
+
+
+def convert_to_dgl_graph(graph):
+    # directed graph
+    g = nx.DiGraph()
+    for edge, weight in graph.items():
+        nodes = edge.split(",")
+        src, dst = int(nodes[0]), int(nodes[1])
+        g.add_edge(src, dst, weight=float(weight))
+
+    return dgl.from_networkx(g, edge_attrs=['weight'])
+
+
+def add_session(session, graph):
+    """
+        For session like:
+            [sku1, sku2, sku3]
+        add 1 weight to each of the following edges:
+            sku1 -> sku2
+            sku2 -> sku3
+        If sesson length < 2, no nodes/edges will be added
+    """
+    for i in range(len(session)-1):
+        edge = str(session[i]) + "," + str(session[i+1])
+        try:
+            graph[edge] += 1
+        except KeyError:
+            graph[edge] = 1
 
 
 def parse_actions(datapath, valid_sku_raw_ids):
@@ -154,29 +186,34 @@ def encode_sku_fields(datapath, sku_encoder, sku_decoder):
     return sku_info_encoder, sku_info_decoder, sku_info
 
 
-def add_session(session, graph):
+class TestEdge:
+    def __init__(self, src, dst, label):
+        self.src = src
+        self.dst = dst
+        self.label = label
+
+
+def split_train_test_graph(graph):
     """
-        For session like:
-            [sku1, sku2, sku3]
-        add 1 weight to each of the following edges:
-            sku1 -> sku2
-            sku2 -> sku3
-        If sesson length < 2, no nodes/edges will be added
+        For test true edges, 1/3 of the edges are randomly chosen 
+        and removed as ground truth in the test set, 
+        the remaining graph is taken as the training set.
     """
-    for i in range(len(session)-1):
-        edge = str(session[i]) + "," + str(session[i+1])
-        try:
-            graph[edge] += 1
-        except KeyError:
-            graph[edge] = 1
+    test_edges = []
+    neg_sampler = dgl.dataloading.negative_sampler.Uniform(1)
+    sampled_edge_ids = random.sample(range(graph.num_edges()), int(graph.num_edges() / 3))
+    for edge_id in sampled_edge_ids:
+        src, dst = graph.find_edges(edge_id)
+        test_edges.append(TestEdge(src, dst, 1))
 
+        src, dst = neg_sampler(graph, th.tensor([edge_id]))
+        test_edges.append(TestEdge(src, dst, 0))
+    
+    graph.remove_edges(sampled_edge_ids)
+    test_graph = test_edges
 
-def convert_to_dgl_graph(graph):
-    g = nx.DiGraph()
-    for edge, weight in graph.items():
-        nodes = edge.split(",")
-        src, dst = int(nodes[0]), int(nodes[1])
-        g.add_edge(src, dst, weight=float(weight))
+    return graph, test_graph
 
-    return dgl.from_networkx(g, edge_attrs=['weight'])
+    
+           
 
