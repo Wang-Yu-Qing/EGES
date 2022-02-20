@@ -47,9 +47,10 @@ class EGES(th.nn.Module):
         return H       
 
     def loss(self, srcs, dsts, labels):
-        dots = th.sum(srcs * dsts, axis=1)
+        dots = th.sigmoid(th.sum(srcs * dsts, axis=1))
+        dots = th.clamp(dots, min=1e-7, max=1 - 1e-7)
 
-        return th.mean(- (labels * th.log(th.sigmoid(dots)) + (1 - labels) * th.log(1 - th.sigmoid(dots))))
+        return th.mean(- (labels * th.log(dots) + (1 - labels) * th.log(1 - dots)))
 
     def query_cold_item(self):
         pass
