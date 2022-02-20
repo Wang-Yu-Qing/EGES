@@ -4,7 +4,11 @@
 dgl==0.6.1, torch==1.9.0
 
 ## Paper
-Billion-scale Commodity Embedding for E-commerce Recommendation in Alibaba: https://arxiv.org/abs/1803.02349
+Billion-scale Commodity Embedding for E-commerce Recommendation in Alibaba: 
+
+https://arxiv.org/pdf/1803.02349.pdf
+
+https://arxiv.org/abs/1803.02349
 
 ## Dataset
 https://wx.jdcloud.com/market/jdata/list/17
@@ -34,4 +38,5 @@ The AUC of link-prediction task on test graph is computed after each epoch is do
 
 ## Reference
 https://github.com/nonva/eges
+
 https://github.com/wangzhegeek/EGES.git
