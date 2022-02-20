@@ -23,18 +23,11 @@ Epoch 00001 | Step 00000 | Step Loss 0.8695 | Epoch Avg Loss: 0.8695
 Epoch 00001 | Step 00100 | Step Loss 0.8290 | Epoch Avg Loss: 0.8643
 Epoch 00001 | Step 00200 | Step Loss 0.8012 | Epoch Avg Loss: 0.8604
 Evaluate link prediction AUC: 0.6875
-Epoch 00002 | Step 00000 | Step Loss 0.8659 | Epoch Avg Loss: 0.8659
-Epoch 00002 | Step 00100 | Step Loss 0.8825 | Epoch Avg Loss: 0.8515
-Epoch 00002 | Step 00200 | Step Loss 0.8644 | Epoch Avg Loss: 0.8482
-Evaluate link prediction AUC: 0.6885
-Epoch 00003 | Step 00000 | Step Loss 0.8370 | Epoch Avg Loss: 0.8370
-Epoch 00003 | Step 00100 | Step Loss 0.8343 | Epoch Avg Loss: 0.8378
-Epoch 00003 | Step 00200 | Step Loss 0.8189 | Epoch Avg Loss: 0.8352
-Evaluate link prediction AUC: 0.6895
-Epoch 00004 | Step 00000 | Step Loss 0.8211 | Epoch Avg Loss: 0.8211
-Epoch 00004 | Step 00100 | Step Loss 0.8175 | Epoch Avg Loss: 0.8259
-Epoch 00004 | Step 00200 | Step Loss 0.8287 | Epoch Avg Loss: 0.8234
-Evaluate link prediction AUC: 0.6904
+...
+Epoch 00029 | Step 00000 | Step Loss 0.7095 | Epoch Avg Loss: 0.7095
+Epoch 00029 | Step 00100 | Step Loss 0.7248 | Epoch Avg Loss: 0.7139
+Epoch 00029 | Step 00200 | Step Loss 0.7123 | Epoch Avg Loss: 0.7134
+Evaluate link prediction AUC: 0.7084
 ```
 
 The AUC of link-prediction task on test graph is computed after each epoch is done.
