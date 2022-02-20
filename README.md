@@ -41,4 +41,5 @@ The AUC of link-prediction task on test graph is computed after each epoch is do
 
 ## Reference
 https://github.com/nonva/eges
+
 https://github.com/wangzhegeek/EGES.git
