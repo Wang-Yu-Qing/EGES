@@ -18,10 +18,10 @@ def init_args():
     argparser.add_argument('--num_walks', type=int, default=5)
     argparser.add_argument('--batch_size', type=int, default=64)
     argparser.add_argument('--dim', type=int, default=16)
-    argparser.add_argument('--epochs', type=int, default=10)
+    argparser.add_argument('--epochs', type=int, default=30)
     argparser.add_argument('--window_size', type=int, default=2)
     argparser.add_argument('--num_negative', type=int, default=5)
-    argparser.add_argument('--lr', type=float, default=0.005)
+    argparser.add_argument('--lr', type=float, default=0.001)
     argparser.add_argument('--log_every', type=int, default=100)
     
     return argparser.parse_args()
