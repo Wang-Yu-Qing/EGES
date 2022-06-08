@@ -92,7 +92,7 @@ def parse_actions(datapath, valid_sku_raw_ids):
         f.readline()
         # raw_id -> new_id and new_id -> raw_id
         sku_encoder, sku_decoder = {}, []
-        sku_id = -1
+        cur_sku_encode_id = -1
         for line in f:
             line = line.replace("\n", "")
             fields = line.split(",")
@@ -104,29 +104,19 @@ def parse_actions(datapath, valid_sku_raw_ids):
                 if sku_raw_id in valid_sku_raw_ids:
                     action_time = fields[2]
                     # encode sku_id
-                    sku_id = encode_id(sku_encoder, 
-                                    sku_decoder, 
-                                    sku_raw_id, 
-                                    sku_id)
-
+                    try:
+                        sku_id = sku_encoder[sku_raw_id]
+                    except KeyError:
+                        cur_sku_encode_id += 1
+                        sku_encoder[sku_raw_id] = cur_sku_encode_id
+                        sku_decoder.append(sku_raw_id)
                     # add to user clicks
                     try:
-                        user_clicks[user_id].append((sku_id, action_time))
+                        user_clicks[user_id].append((sku_encoder[sku_raw_id], action_time))
                     except KeyError:
-                        user_clicks[user_id] = [(sku_id, action_time)]
+                        user_clicks[user_id] = [(sku_encoder[sku_raw_id], action_time)]
     
     return user_clicks, sku_encoder, sku_decoder
-
-
-def encode_id(encoder, decoder, raw_id, encoded_id):
-    if raw_id in encoder:
-        return encoded_id
-    else:
-        encoded_id += 1
-        encoder[raw_id] = encoded_id
-        decoder.append(raw_id)
-
-    return encoded_id
 
 
 def get_valid_sku_set(datapath):
@@ -145,7 +135,7 @@ def encode_sku_fields(datapath, sku_encoder, sku_decoder):
     sku_info_encoder = {"brand": {}, "shop": {}, "cate": {}}
     sku_info_decoder = {"brand": [], "shop": [], "cate": []}
     sku_info = {}
-    brand_id, shop_id, cate_id = -1, -1, -1
+    cur_brand_encode_id, cur_shop_encode_id, cur_cate_encode_id = -1, -1, -1
     with open(datapath, "r") as f:
         f.readline()
         for line in f:
@@ -160,26 +150,29 @@ def encode_sku_fields(datapath, sku_encoder, sku_decoder):
             if sku_raw_id in sku_encoder:
                 sku_id = sku_encoder[sku_raw_id]
                 
-                brand_id = encode_id(
-                        sku_info_encoder["brand"], 
-                        sku_info_decoder["brand"], 
-                        brand_raw_id,
-                        brand_id
-                    )
+                try:
+                    brand_id = sku_info_encoder['brand'][brand_raw_id]
+                except KeyError:
+                    cur_brand_encode_id += 1
+                    sku_info_encoder['brand'][brand_raw_id] = cur_brand_encode_id
+                    sku_info_decoder['brand'].append(brand_raw_id)
+                    brand_id = sku_info_encoder['brand'][brand_raw_id]
 
-                shop_id = encode_id(
-                        sku_info_encoder["shop"], 
-                        sku_info_decoder["shop"], 
-                        shop_raw_id,
-                        shop_id
-                    )
+                try:
+                    shop_id = sku_info_encoder['shop'][shop_raw_id]
+                except KeyError:
+                    cur_shop_encode_id += 1
+                    sku_info_encoder['shop'][shop_raw_id] = cur_shop_encode_id
+                    sku_info_decoder['shop'].append(shop_raw_id)
+                    shop_id = sku_info_encoder['shop'][shop_raw_id]
 
-                cate_id = encode_id(
-                        sku_info_encoder["cate"], 
-                        sku_info_decoder["cate"], 
-                        cate_raw_id,
-                        cate_id
-                    )
+                try:
+                    cate_id = sku_info_encoder['cate'][cate_raw_id]
+                except KeyError:
+                    cur_cate_encode_id += 1
+                    sku_info_encoder['cate'][cate_raw_id] = cur_cate_encode_id
+                    sku_info_decoder['cate'].append(cate_raw_id)
+                    cate_id = sku_info_encoder['cate'][cate_raw_id]
 
                 sku_info[sku_id] = [sku_id, brand_id, shop_id, cate_id]
 
