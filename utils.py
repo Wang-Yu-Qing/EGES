@@ -10,25 +10,25 @@ from datetime import datetime
 def init_args():
     # TODO: change args
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--session_interval_sec', type=int, default=1800)
+    argparser.add_argument('--session_interval_sec', type=int, default=7200)
+    argparser.add_argument('--min_sku_freq', type=int, default=15)
     argparser.add_argument('--action_data', type=str, default="data/action_head.csv")
-    argparser.add_argument('--item_info_data', type=str, 
-                           default="data/jdata_product.csv")
+    argparser.add_argument('--item_info_data', type=str, default="data/jdata_product.csv")
     argparser.add_argument('--walk_length', type=int, default=10)
     argparser.add_argument('--num_walks', type=int, default=5)
     argparser.add_argument('--batch_size', type=int, default=64)
-    argparser.add_argument('--dim', type=int, default=16)
-    argparser.add_argument('--epochs', type=int, default=30)
+    argparser.add_argument('--dim', type=int, default=8)
+    argparser.add_argument('--epochs', type=int, default=1)
     argparser.add_argument('--window_size', type=int, default=2)
     argparser.add_argument('--num_negative', type=int, default=5)
-    argparser.add_argument('--lr', type=float, default=0.001)
+    argparser.add_argument('--lr', type=float, default=0.1)
     argparser.add_argument('--log_every', type=int, default=100)
     
     return argparser.parse_args()
 
 
-def construct_graph(datapath, session_interval_gap_sec, valid_sku_raw_ids):
-    user_clicks, sku_encoder, sku_decoder = parse_actions(datapath, valid_sku_raw_ids)
+def construct_graph(datapath, session_interval_gap_sec, valid_sku_raw_ids, min_sku_freq):
+    user_clicks, sku_encoder, sku_decoder = parse_actions(datapath, valid_sku_raw_ids, min_sku_freq)
 
     # {src,dst: weight}
     graph = {}
@@ -86,52 +86,51 @@ def add_session(session, graph):
             graph[edge] = 1
 
 
-def parse_actions(datapath, valid_sku_raw_ids):
-    user_clicks = {}
+def parse_actions(datapath, valid_sku_raw_ids, min_sku_freq):
+    user_clicks, sku_freq = {}, {}
+    lines = []
+    # freq count
     with open(datapath, "r") as f:
         f.readline()
-        # raw_id -> new_id and new_id -> raw_id
-        sku_encoder, sku_decoder = {}, []
-        sku_id = -1
         for line in f:
             line = line.replace("\n", "")
             fields = line.split(",")
+            lines.append(fields)
             action_type = fields[-1]
             # actually, all types in the dataset is "1"
             if action_type == "1":
                 user_id = fields[0]
                 sku_raw_id = fields[1]
                 if sku_raw_id in valid_sku_raw_ids:
-                    action_time = fields[2]
-                    # encode sku_id
-                    sku_id = encode_id(sku_encoder, 
-                                    sku_decoder, 
-                                    sku_raw_id, 
-                                    sku_id)
-
-                    # add to user clicks
+                    # count freq
                     try:
-                        user_clicks[user_id].append((sku_id, action_time))
+                        sku_freq[sku_raw_id] += 1
                     except KeyError:
-                        user_clicks[user_id] = [(sku_id, action_time)]
+                        sku_freq[sku_raw_id] = 1
+    # encode
+    # raw_id -> new_id and new_id -> raw_id
+    sku_encoder, sku_decoder = {}, []
+    cur_sku_encode_id = -1
+    for fields in lines:
+        user_id, sku_raw_id, action_time = fields[0], fields[1], fields[2]
+        if sku_raw_id in valid_sku_raw_ids and sku_freq[sku_raw_id] >= min_sku_freq:
+            # encode sku_id
+            if sku_raw_id not in sku_encoder:
+                cur_sku_encode_id += 1
+                sku_encoder[sku_raw_id] = cur_sku_encode_id
+                sku_decoder.append(sku_raw_id)
+            # add to user clicks
+            try:
+                user_clicks[user_id].append((sku_encoder[sku_raw_id], action_time))
+            except KeyError:
+                user_clicks[user_id] = [(sku_encoder[sku_raw_id], action_time)]
     
     return user_clicks, sku_encoder, sku_decoder
 
 
-def encode_id(encoder, decoder, raw_id, encoded_id):
-    if raw_id in encoder:
-        return encoded_id
-    else:
-        encoded_id += 1
-        encoder[raw_id] = encoded_id
-        decoder.append(raw_id)
-
-    return encoded_id
-
-
-def get_valid_sku_set(datapath):
+def get_valid_sku_set(item_info_path):
     sku_ids = set()
-    with open(datapath, "r") as f:
+    with open(item_info_path, "r") as f:
         for line in f.readlines():
             line.replace("\n", "")
             sku_raw_id = line.split(",")[0]
@@ -145,7 +144,7 @@ def encode_sku_fields(datapath, sku_encoder, sku_decoder):
     sku_info_encoder = {"brand": {}, "shop": {}, "cate": {}}
     sku_info_decoder = {"brand": [], "shop": [], "cate": []}
     sku_info = {}
-    brand_id, shop_id, cate_id = -1, -1, -1
+    cur_brand_encode_id, cur_shop_encode_id, cur_cate_encode_id = -1, -1, -1
     with open(datapath, "r") as f:
         f.readline()
         for line in f:
@@ -160,26 +159,29 @@ def encode_sku_fields(datapath, sku_encoder, sku_decoder):
             if sku_raw_id in sku_encoder:
                 sku_id = sku_encoder[sku_raw_id]
                 
-                brand_id = encode_id(
-                        sku_info_encoder["brand"], 
-                        sku_info_decoder["brand"], 
-                        brand_raw_id,
-                        brand_id
-                    )
+                try:
+                    brand_id = sku_info_encoder['brand'][brand_raw_id]
+                except KeyError:
+                    cur_brand_encode_id += 1
+                    sku_info_encoder['brand'][brand_raw_id] = cur_brand_encode_id
+                    sku_info_decoder['brand'].append(brand_raw_id)
+                    brand_id = sku_info_encoder['brand'][brand_raw_id]
 
-                shop_id = encode_id(
-                        sku_info_encoder["shop"], 
-                        sku_info_decoder["shop"], 
-                        shop_raw_id,
-                        shop_id
-                    )
+                try:
+                    shop_id = sku_info_encoder['shop'][shop_raw_id]
+                except KeyError:
+                    cur_shop_encode_id += 1
+                    sku_info_encoder['shop'][shop_raw_id] = cur_shop_encode_id
+                    sku_info_decoder['shop'].append(shop_raw_id)
+                    shop_id = sku_info_encoder['shop'][shop_raw_id]
 
-                cate_id = encode_id(
-                        sku_info_encoder["cate"], 
-                        sku_info_decoder["cate"], 
-                        cate_raw_id,
-                        cate_id
-                    )
+                try:
+                    cate_id = sku_info_encoder['cate'][cate_raw_id]
+                except KeyError:
+                    cur_cate_encode_id += 1
+                    sku_info_encoder['cate'][cate_raw_id] = cur_cate_encode_id
+                    sku_info_decoder['cate'].append(cate_raw_id)
+                    cate_id = sku_info_encoder['cate'][cate_raw_id]
 
                 sku_info[sku_id] = [sku_id, brand_id, shop_id, cate_id]
 
@@ -193,15 +195,15 @@ class TestEdge:
         self.label = label
 
 
-def split_train_test_graph(graph):
+def split_train_test_graph(graph, num_negative):
     """
-        For test true edges, 1/3 of the edges are randomly chosen 
-        and removed as ground truth in the test set, 
+        For test true edges, 1/5 of the edges are randomly chosen 
+        and removed as ground truth in the test set
         the remaining graph is taken as the training set.
     """
     test_edges = []
-    neg_sampler = dgl.dataloading.negative_sampler.Uniform(1)
-    sampled_edge_ids = random.sample(range(graph.num_edges()), int(graph.num_edges() / 3))
+    neg_sampler = dgl.dataloading.negative_sampler.Uniform(num_negative)
+    sampled_edge_ids = random.sample(range(graph.num_edges()), int(graph.num_edges() / 5))
     for edge_id in sampled_edge_ids:
         src, dst = graph.find_edges(edge_id)
         test_edges.append(TestEdge(src, dst, 1))
@@ -213,7 +215,3 @@ def split_train_test_graph(graph):
     test_graph = test_edges
 
     return graph, test_graph
-
-    
-           
-
