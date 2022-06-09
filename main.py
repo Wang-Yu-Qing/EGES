@@ -3,6 +3,7 @@ import torch as th
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from sklearn import metrics
+from sklearn.manifold import TSNE
 
 import utils
 from model import EGES
@@ -71,6 +72,15 @@ def eval(model, test_graph, sku_info):
     print("Evaluate link prediction AUC: {:.4f}".format(metrics.auc(fpr, tpr)))
 
 
+def tsne(model, sku_info):
+    nodes = []
+    for _, sku_fields in sku_info.items():
+        nodes.append(sku_fields)
+    nodes = th.tensor(nodes, dtype=th.int32)
+    embeds = model.query_node_embed(nodes).detach().numpy()
+    embeds = TSNE(n_components=2, learning_rate='auto', init='random').fit_transform(embeds)
+
+
 if __name__ == "__main__":
     args = utils.init_args()
 
@@ -79,10 +89,11 @@ if __name__ == "__main__":
     g, sku_encoder, sku_decoder = utils.construct_graph(
         args.action_data, 
         args.session_interval_sec,
-        valid_sku_raw_ids
+        valid_sku_raw_ids,
+        args.min_sku_freq
     )
 
-    train_g, test_g = utils.split_train_test_graph(g)
+    train_g, test_g = utils.split_train_test_graph(g, args.num_negative)
 
     sku_info_encoder, sku_info_decoder, sku_info = \
         utils.encode_sku_fields(args.item_info_data, sku_encoder, sku_decoder)
@@ -99,12 +110,4 @@ if __name__ == "__main__":
 
     model = train(args, train_g, sku_info, num_skus, num_brands, num_shops, num_cates)
 
-
-
-
-
-
-    
-
-    
-
+    tsne_embeds = tsne(model, sku_info)
