@@ -20,20 +20,18 @@ Run command: `python main.py` with default configuration, and the following mess
 
 ```
 Using backend: pytorch
-Num skus: 33344, num brands: 3662, num shops: 4785, num cates: 79
-Epoch 00000 | Step 00000 | Step Loss 0.9117 | Epoch Avg Loss: 0.9117
-Epoch 00000 | Step 00100 | Step Loss 0.8736 | Epoch Avg Loss: 0.8801
-Epoch 00000 | Step 00200 | Step Loss 0.8975 | Epoch Avg Loss: 0.8785
-Evaluate link prediction AUC: 0.6864
-Epoch 00001 | Step 00000 | Step Loss 0.8695 | Epoch Avg Loss: 0.8695
-Epoch 00001 | Step 00100 | Step Loss 0.8290 | Epoch Avg Loss: 0.8643
-Epoch 00001 | Step 00200 | Step Loss 0.8012 | Epoch Avg Loss: 0.8604
-Evaluate link prediction AUC: 0.6875
+Num skus: 1006, num brands: 221, num shops: 308, num cates: 55
+Epoch 00000 | Step 00000 | Step Loss 0.8452 | Epoch Avg Loss: 0.8452
+Evaluate link prediction AUC: 0.5557
+Epoch 00001 | Step 00000 | Step Loss 0.7293 | Epoch Avg Loss: 0.7293
+Evaluate link prediction AUC: 0.5774
+Epoch 00002 | Step 00000 | Step Loss 0.7157 | Epoch Avg Loss: 0.7157
+Evaluate link prediction AUC: 0.5764
 ...
-Epoch 00029 | Step 00000 | Step Loss 0.7095 | Epoch Avg Loss: 0.7095
-Epoch 00029 | Step 00100 | Step Loss 0.7248 | Epoch Avg Loss: 0.7139
-Epoch 00029 | Step 00200 | Step Loss 0.7123 | Epoch Avg Loss: 0.7134
-Evaluate link prediction AUC: 0.7084
+Epoch 00028 | Step 00000 | Step Loss 0.7105 | Epoch Avg Loss: 0.7105
+Evaluate link prediction AUC: 0.5880
+Epoch 00029 | Step 00000 | Step Loss 0.7115 | Epoch Avg Loss: 0.7115
+Evaluate link prediction AUC: 0.5914
 ```
 
 The AUC of link-prediction task on test graph is computed after each epoch is done.
