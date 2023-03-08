@@ -18,20 +18,27 @@ def init_args():
     argparser.add_argument('--num_walks', type=int, default=5)
     argparser.add_argument('--batch_size', type=int, default=64)
     argparser.add_argument('--dim', type=int, default=8)
-    argparser.add_argument('--epochs', type=int, default=1)
+    argparser.add_argument('--epochs', type=int, default=10)
     argparser.add_argument('--window_size', type=int, default=2)
     argparser.add_argument('--num_negative', type=int, default=5)
     argparser.add_argument('--lr', type=float, default=0.1)
-    argparser.add_argument('--log_every', type=int, default=100)
+    argparser.add_argument('--log_every', type=int, default=10)
     
     return argparser.parse_args()
 
+def encode(sessions):
+    skus = set([sku for s in sessions for sku in s])
+    encoder = {y: x for x, y in enumerate(skus)}
+    decoder = [y for x, y in enumerate(skus)]
+
+    return encoder, decoder
+
 
 def construct_graph(datapath, session_interval_gap_sec, valid_sku_raw_ids, min_sku_freq):
-    user_clicks, sku_encoder, sku_decoder = parse_actions(datapath, valid_sku_raw_ids, min_sku_freq)
+    user_clicks = parse_actions(datapath, valid_sku_raw_ids, min_sku_freq)
 
     # {src,dst: weight}
-    graph = {}
+    sessions, graph = [], {}
     for user_id, action_list in user_clicks.items():
         # sort by action time
         _action_list = sorted(action_list, key=lambda x: x[1])
@@ -46,11 +53,18 @@ def construct_graph(datapath, session_interval_gap_sec, valid_sku_raw_ids, min_s
                 session.append(sku_id)
             else:
                 # here we have a new session
-                # add prev session to graph
-                add_session(session, graph)
+                # add prev session to sessions.
+                if (len(session) > 1): sessions.append(session)
                 # create a new session
                 session = [sku_id]
         # add last session
+        if (len(session) > 1): sessions.append(session)
+    
+    # encode skus in session so that sku id is in [0, n - 1]
+    sku_encoder, sku_decoder = encode(sessions)
+    for session in sessions:
+        for i in range(len(session)):
+            session[i] = sku_encoder[session[i]]
         add_session(session, graph)
     
     g = convert_to_dgl_graph(graph)
@@ -76,7 +90,6 @@ def add_session(session, graph):
         add 1 weight to each of the following edges:
             sku1 -> sku2
             sku2 -> sku3
-        If sesson length < 2, no nodes/edges will be added
     """
     for i in range(len(session)-1):
         edge = str(session[i]) + "," + str(session[i+1])
@@ -107,25 +120,16 @@ def parse_actions(datapath, valid_sku_raw_ids, min_sku_freq):
                         sku_freq[sku_raw_id] += 1
                     except KeyError:
                         sku_freq[sku_raw_id] = 1
-    # encode
-    # raw_id -> new_id and new_id -> raw_id
-    sku_encoder, sku_decoder = {}, []
-    cur_sku_encode_id = -1
     for fields in lines:
         user_id, sku_raw_id, action_time = fields[0], fields[1], fields[2]
         if sku_raw_id in valid_sku_raw_ids and sku_freq[sku_raw_id] >= min_sku_freq:
-            # encode sku_id
-            if sku_raw_id not in sku_encoder:
-                cur_sku_encode_id += 1
-                sku_encoder[sku_raw_id] = cur_sku_encode_id
-                sku_decoder.append(sku_raw_id)
             # add to user clicks
             try:
-                user_clicks[user_id].append((sku_encoder[sku_raw_id], action_time))
+                user_clicks[user_id].append((sku_raw_id, action_time))
             except KeyError:
-                user_clicks[user_id] = [(sku_encoder[sku_raw_id], action_time)]
+                user_clicks[user_id] = [(sku_raw_id, action_time)]
     
-    return user_clicks, sku_encoder, sku_decoder
+    return user_clicks
 
 
 def get_valid_sku_set(item_info_path):
